@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const pillars = [
   {
     title: "Sources",
@@ -28,6 +30,19 @@ export default function Home() {
           devrait montrer d’où elles viennent, ce qui les confirme et ce qui
           reste encore à découvrir.
         </p>
+        <div className="home-actions">
+          <Link className="button primary" href="/families">
+            Ouvrir GeoFlow
+          </Link>
+          <a
+            className="button secondary"
+            href="https://github.com/BenVoyonsDavid/GeoFlow"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Voir le dépôt GitHub
+          </a>
+        </div>
       </section>
 
       <section className="grid" aria-label="Fondations de GeoFlow">
@@ -41,7 +56,7 @@ export default function Home() {
 
       <section className="status">
         <span className="dot" aria-hidden="true" />
-        Fondation technique en cours
+        Premier flux famille → personne → relation → source disponible
       </section>
     </main>
   );
