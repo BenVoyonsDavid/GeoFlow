@@ -1,0 +1,345 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FamilyRole {
+  OWNER
+  ADMIN
+  RESEARCHER
+  CONTRIBUTOR
+  VIEWER
+}
+
+enum Sex {
+  FEMALE
+  MALE
+  INTERSEX
+  UNKNOWN
+  UNSPECIFIED
+}
+
+enum RelationshipType {
+  PARENT_CHILD
+  COUPLE
+  SIBLING
+  GUARDIAN
+  ADOPTIVE_PARENT_CHILD
+  FOSTER_PARENT_CHILD
+  OTHER
+}
+
+enum EventType {
+  BIRTH
+  BAPTISM
+  MARRIAGE
+  DIVORCE
+  DEATH
+  BURIAL
+  RESIDENCE
+  CENSUS
+  IMMIGRATION
+  EMIGRATION
+  OCCUPATION
+  MILITARY
+  EDUCATION
+  OTHER
+}
+
+enum SourceType {
+  VITAL_RECORD
+  PARISH_REGISTER
+  CENSUS
+  NEWSPAPER
+  OBITUARY
+  CEMETERY
+  NOTARIAL_RECORD
+  MILITARY_RECORD
+  IMMIGRATION_RECORD
+  DIRECTORY
+  BOOK
+  WEBSITE
+  FAMILY_TREE
+  PHOTO
+  AUDIO
+  VIDEO
+  LETTER
+  INTERVIEW
+  GEDCOM
+  OTHER
+}
+
+enum ClaimStatus {
+  HYPOTHESIS
+  PROPOSED
+  SUPPORTED
+  CONFIRMED
+  DISPUTED
+  REJECTED
+}
+
+enum EvidencePosition {
+  SUPPORTS
+  CONTRADICTS
+  CONTEXT
+}
+
+enum InvestigationStatus {
+  OPEN
+  RESOLVED
+  ARCHIVED
+}
+
+enum HypothesisStatus {
+  ACTIVE
+  LEADING
+  CONFIRMED
+  REJECTED
+}
+
+model User {
+  id          String             @id @default(cuid())
+  email       String             @unique
+  displayName String?
+  memberships FamilyMembership[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model Family {
+  id             String             @id @default(cuid())
+  name           String
+  slug           String             @unique
+  memberships    FamilyMembership[]
+  persons        Person[]
+  relationships  Relationship[]
+  places         Place[]
+  events         LifeEvent[]
+  sources        Source[]
+  claims         Claim[]
+  media          MediaItem[]
+  investigations Investigation[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model FamilyMembership {
+  familyId  String
+  userId    String
+  role      FamilyRole @default(VIEWER)
+  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@id([familyId, userId])
+}
+
+model Person {
+  id                 String         @id @default(cuid())
+  familyId           String
+  family             Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  givenNames         String?
+  surname            String?
+  preferredName      String?
+  sex                Sex            @default(UNKNOWN)
+  notes              String?
+  outgoingRelations  Relationship[] @relation("RelationshipFrom")
+  incomingRelations  Relationship[] @relation("RelationshipTo")
+  events             LifeEvent[]
+  claims             Claim[]
+  mediaLinks         PersonMedia[]
+  investigations     Investigation[]
+  hypothesisSubjects Hypothesis[]   @relation("HypothesisCandidatePerson")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([familyId, surname, givenNames])
+}
+
+model Relationship {
+  id              String           @id @default(cuid())
+  familyId        String
+  family          Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  fromPersonId    String
+  toPersonId      String
+  fromPerson      Person           @relation("RelationshipFrom", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  toPerson        Person           @relation("RelationshipTo", fields: [toPersonId], references: [id], onDelete: Cascade)
+  type            RelationshipType
+  notes           String?
+  claims          Claim[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([familyId, fromPersonId])
+  @@index([familyId, toPersonId])
+}
+
+model Place {
+  id        String      @id @default(cuid())
+  familyId  String
+  family    Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  name      String
+  latitude  Decimal?    @db.Decimal(9, 6)
+  longitude Decimal?    @db.Decimal(9, 6)
+  country   String?
+  region    String?
+  locality  String?
+  events    LifeEvent[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([familyId, name])
+}
+
+model LifeEvent {
+  id        String    @id @default(cuid())
+  familyId  String
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  personId  String?
+  person    Person?   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type      EventType
+  title     String?
+  dateText  String?
+  placeId   String?
+  place     Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  notes     String?
+  claims    Claim[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([familyId, personId, type])
+}
+
+model Source {
+  id            String           @id @default(cuid())
+  familyId      String
+  family        Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  title         String
+  type          SourceType       @default(OTHER)
+  provider      String?
+  author        String?
+  collection    String?
+  archivalRef   String?
+  permanentId   String?
+  url           String?
+  rights        String?
+  accessedAt    DateTime?
+  notes         String?
+  citations     SourceCitation[]
+  evidence      Evidence[]
+  media         MediaItem[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([familyId, provider])
+}
+
+model SourceCitation {
+  id          String   @id @default(cuid())
+  sourceId    String
+  source      Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  locator     String?
+  transcription String?
+  quotation   String?
+  notes       String?
+  evidence    Evidence[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Claim {
+  id             String         @id @default(cuid())
+  familyId       String
+  family         Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  personId       String?
+  person         Person?        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  relationshipId String?
+  relationship   Relationship?  @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  eventId        String?
+  event          LifeEvent?     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  kind           String
+  valueText      String
+  status         ClaimStatus    @default(PROPOSED)
+  confidence     Float?
+  rationale      String?
+  evidence       Evidence[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([familyId, personId, kind])
+}
+
+model Evidence {
+  id         String           @id @default(cuid())
+  claimId    String
+  claim      Claim            @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  sourceId   String
+  source     Source           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  citationId String?
+  citation   SourceCitation?  @relation(fields: [citationId], references: [id], onDelete: SetNull)
+  position   EvidencePosition
+  weight     Float?
+  rationale  String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([claimId, sourceId, citationId])
+}
+
+model MediaItem {
+  id          String        @id @default(cuid())
+  familyId    String
+  family      Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  sourceId    String?
+  source      Source?       @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  title       String?
+  mimeType    String?
+  storageKey  String
+  checksum    String?
+  description String?
+  persons     PersonMedia[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model PersonMedia {
+  personId String
+  mediaId  String
+  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  media    MediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  caption  String?
+
+  @@id([personId, mediaId])
+}
+
+model Investigation {
+  id              String              @id @default(cuid())
+  familyId        String
+  family          Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  subjectPersonId String?
+  subjectPerson   Person?             @relation(fields: [subjectPersonId], references: [id], onDelete: SetNull)
+  question        String
+  description     String?
+  status          InvestigationStatus @default(OPEN)
+  hypotheses      Hypothesis[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model Hypothesis {
+  id                String           @id @default(cuid())
+  investigationId   String
+  investigation     Investigation    @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  candidatePersonId String?
+  candidatePerson   Person?          @relation("HypothesisCandidatePerson", fields: [candidatePersonId], references: [id], onDelete: SetNull)
+  title             String
+  description       String?
+  confidence        Float?
+  status            HypothesisStatus @default(ACTIVE)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
