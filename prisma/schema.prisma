@@ -152,6 +152,7 @@ model Person {
   events             LifeEvent[]
   claims             Claim[]
   mediaLinks         PersonMedia[]
+  sourceLinks        PersonSource[]
   investigations     Investigation[]
   hypothesisSubjects Hypothesis[]   @relation("HypothesisCandidatePerson")
   createdAt          DateTime       @default(now())
@@ -232,10 +233,23 @@ model Source {
   citations   SourceCitation[]
   evidence    Evidence[]
   media       MediaItem[]
+  personLinks PersonSource[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   @@index([familyId, provider])
+}
+
+model PersonSource {
+  personId   String
+  sourceId   String
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  source     Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@id([personId, sourceId])
+  @@index([sourceId])
 }
 
 model SourceCitation {
