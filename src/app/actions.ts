@@ -107,7 +107,7 @@ export async function createRelative(formData: FormData) {
   }
 
   let relativeSex = readSex(text(formData, "sex"));
-  let type = RelationshipType.OTHER;
+  let type: RelationshipType = RelationshipType.OTHER;
   let fromPersonId = personId;
   let relativeIsFrom = false;
   let relationshipNote: string | null = null;
